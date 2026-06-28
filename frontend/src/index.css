@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Leaflet z-index fix ─── */
+.leaflet-container {
+  z-index: 0;
+}
+
+/* ── Custom scrollbar ─── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* ── Severity marker pulses ─── */
+.marker-critical {
+  background: #ef4444;
+  box-shadow: 0 0 10px 3px rgba(239, 68, 68, 0.5);
+}
+.marker-high {
+  background: #f97316;
+  box-shadow: 0 0 8px 2px rgba(249, 115, 22, 0.4);
+}
+.marker-medium {
+  background: #eab308;
+  box-shadow: 0 0 6px 2px rgba(234, 179, 8, 0.35);
+}
+.marker-low {
+  background: #22c55e;
+  box-shadow: 0 0 6px 2px rgba(34, 197, 94, 0.3);
+}
+
+/* ── Glassmorphism utility ─── */
+.glass {
+  background: rgba(30, 41, 59, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+/* ── Panel slide animations ─── */
+.panel-enter {
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.panel-bottom-enter {
+  animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Leaflet popup overrides ─── */
+.leaflet-popup-content-wrapper {
+  background: #1e293b !important;
+  color: #e2e8f0 !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(148, 163, 184, 0.15) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+}
+.leaflet-popup-tip {
+  background: #1e293b !important;
+}
+.leaflet-popup-close-button {
+  color: #94a3b8 !important;
+}
+.leaflet-popup-close-button:hover {
+  color: #e2e8f0 !important;
+}
+
+/* ── Drag-and-drop zone ─── */
+.drop-zone {
+  border: 2px dashed #475569;
+  transition: all 0.2s ease;
+}
+.drop-zone:hover,
+.drop-zone.drag-over {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.08);
+}
+
+/* ── Map tile saturation ─── */
+.leaflet-tile-pane {
+  filter: saturate(0.85) brightness(0.7);
+}
+
+/* ── Civic Popup Overrides ─── */
+.civic-popup .leaflet-popup-content-wrapper {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+}
+.civic-popup .leaflet-popup-content {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.civic-popup .leaflet-popup-tip {
+  background: #1e293b !important;
+}
+
+/* ── User location pulse animation ─── */
+@keyframes userPulse {
+  0%   { transform: scale(1);   opacity: 0.8; }
+  70%  { transform: scale(2.4); opacity: 0;   }
+  100% { transform: scale(2.4); opacity: 0;   }
+}
