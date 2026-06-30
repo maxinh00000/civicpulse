@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   X, ThumbsUp, CheckCircle2, Clock, MapPin, Copy, Phone,
   ExternalLink, AlertTriangle, Droplets, Trash2, Lightbulb,
-  HelpCircle, Sparkles, Shield, FileText,
+  HelpCircle, Sparkles, Shield, FileText, Navigation,
 } from 'lucide-react';
 import type { Issue } from '../types';
 import toast from 'react-hot-toast';
@@ -12,6 +12,8 @@ interface IssueDetailProps {
   onClose: () => void;
   onVote: (id: string) => void;
   onResolve: (id: string) => void;
+  onSelectDirections?: (lat: number, lng: number, label: string) => void;
+  onSelectStartNavigation?: (lat: number, lng: number, label: string) => void;
 }
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -75,7 +77,7 @@ A Concerned Citizen
 CivicPulse Issue ID: ${issue.id}`;
 }
 
-export default function IssueDetail({ issue, onClose, onVote, onResolve }: IssueDetailProps) {
+export default function IssueDetail({ issue, onClose, onVote, onResolve, onSelectDirections, onSelectStartNavigation }: IssueDetailProps) {
   const [showComplaint, setShowComplaint] = useState(false);
   const CatIcon = CATEGORY_ICONS[issue.category] || HelpCircle;
   const authority = AUTHORITY_INFO[issue.category] || AUTHORITY_INFO.other;
@@ -207,6 +209,33 @@ export default function IssueDetail({ issue, onClose, onVote, onResolve }: Issue
                 Mark Resolved
               </button>
             )}
+          </div>
+
+          {/* ── Directions & Navigation Actions ─── */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                const label = issue.address || issue.title;
+                onSelectDirections?.(issue.latitude, issue.longitude, label);
+              }}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl
+                         bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30
+                         text-blue-400 text-sm font-medium transition-all"
+            >
+              <Navigation size={16} />
+              Directions
+            </button>
+            <button
+              onClick={() => {
+                const label = issue.address || issue.title;
+                onSelectStartNavigation?.(issue.latitude, issue.longitude, label);
+              }}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl
+                         bg-green-600/20 hover:bg-green-600/30 border border-green-500/30
+                         text-green-400 text-sm font-medium transition-all"
+            >
+              🚀 Start Nav
+            </button>
           </div>
 
           {/* ── Authority ─── */}

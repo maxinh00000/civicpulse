@@ -3,7 +3,7 @@ import {
   Search, X, MapPin, Navigation, Loader2, AlertTriangle,
   Clock, ArrowRight,
 } from 'lucide-react';
-import { checkRouteSafety } from '../api';
+import { checkRouteSafety, reverseGeocode } from '../api';
 import type { RouteWarning } from '../types';
 import toast from 'react-hot-toast';
 
@@ -24,6 +24,12 @@ interface SearchBarProps {
   onStopNavigation?: () => void;
   externalDestination?: { lat: number; lng: number; label: string } | null;
   onClearExternalDestination?: () => void;
+  directionsMode?: boolean;
+  onDirectionsModeChange?: (expanded: boolean) => void;
+  activeRouteField?: 'from' | 'to' | null;
+  onActiveFieldChange?: (field: 'from' | 'to' | null) => void;
+  mapClickCoords?: { lat: number; lng: number } | null;
+  onClearMapClick?: () => void;
 }
 
 const TRANSPORT_MODES: { id: TransportMode; label: string; osrm: string }[] = [
@@ -40,6 +46,12 @@ export default function SearchBar({
   onStopNavigation,
   externalDestination,
   onClearExternalDestination,
+  directionsMode = false,
+  onDirectionsModeChange,
+  activeRouteField = null,
+  onActiveFieldChange,
+  mapClickCoords = null,
+  onClearMapClick,
 }: SearchBarProps) {
   const [expanded, setExpanded] = useState(false);
   const [fromText, setFromText] = useState('My Location');
@@ -58,6 +70,59 @@ export default function SearchBar({
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  const updateExpanded = (val: boolean) => {
+    setExpanded(val);
+    onDirectionsModeChange?.(val);
+  };
+
+  const updateActiveField = (val: 'from' | 'to' | null) => {
+    setActiveField(val);
+    onActiveFieldChange?.(val);
+  };
+
+  useEffect(() => {
+    if (directionsMode !== undefined) {
+      setExpanded(directionsMode);
+    }
+  }, [directionsMode]);
+
+  useEffect(() => {
+    if (activeRouteField !== undefined) {
+      setActiveField(activeRouteField);
+    }
+  }, [activeRouteField]);
+
+  useEffect(() => {
+    if (!mapClickCoords || !expanded || !activeField) return;
+    const { lat, lng } = mapClickCoords;
+    console.log("clickedLatLng", { lat, lng });
+
+    reverseGeocode(lat, lng).then((res) => {
+      const shortName = (res.success && res.address)
+        ? res.address.split(',').slice(0, 3).join(',')
+        : `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      
+      if (activeField === 'from') {
+        setFromText(shortName);
+        setFromCoords({ lat, lng });
+      } else {
+        setToText(shortName);
+        setToCoords({ lat, lng });
+      }
+    }).catch(() => {
+      const coordsText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      if (activeField === 'from') {
+        setFromText(coordsText);
+        setFromCoords({ lat, lng });
+      } else {
+        setToText(coordsText);
+        setToCoords({ lat, lng });
+      }
+    }).finally(() => {
+      onClearMapClick?.();
+    });
+  }, [mapClickCoords, expanded, activeField, onClearMapClick]);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -212,25 +277,37 @@ export default function SearchBar({
       const modeConfig = TRANSPORT_MODES.find(m => m.id === transportMode)!;
       const url = `http://router.project-osrm.org/route/v1/${modeConfig.osrm}/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson`;
       const res = await fetch(url);
-      const data = await res.json();
-      if (data.code !== 'Ok' || !data.routes?.length) { toast.error('Could not find a route'); return; }
-      const route = data.routes[0];
+      const routeResponse = await res.json();
+      console.log("routeResponse", routeResponse);
+
+      if (routeResponse.code !== 'Ok' || !routeResponse.routes?.length) { 
+        toast.error('Could not find a route'); 
+        return; 
+      }
+      const route = routeResponse.routes[0];
       const coords: [number, number][] = route.geometry.coordinates.map((c: [number, number]) => [c[1], c[0]] as [number, number]);
-      setRouteCoords(coords); onDrawRoute(coords); onSafetyWarnings(null);
+      setRouteCoords(coords); 
+      onDrawRoute(coords); 
+
+      // Concurrently query safety warnings along the route
+      const safetyResult = await checkRouteSafety(origin, destination);
+      setWarnings(safetyResult.warnings);
+      setWarningCount(safetyResult.total);
+      onSafetyWarnings(safetyResult.warnings);
+
       const distKm = (route.distance / 1000).toFixed(1);
       const durMin = Math.round(route.duration / 60);
       setRouteInfo({ distance: `${distKm} km`, duration: `${durMin} min` });
-    } catch { toast.error('Directions failed'); } finally { setLoading(false); }
+    } catch (err) { 
+      toast.error('Directions or Route Safety check failed'); 
+      console.error(err);
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleCheckSafety = async () => {
-    const resolved = await resolveCoords();
-    if (!resolved) return;
-    setLoading(true); setRouteInfo(null);
-    try {
-      const result = await checkRouteSafety(resolved.origin, resolved.destination);
-      setWarnings(result.warnings); setWarningCount(result.total); onSafetyWarnings(result.warnings);
-    } catch { toast.error('Route safety check failed'); } finally { setLoading(false); }
+    await handleGetDirections();
   };
 
   const handleStartNavigation = async () => {
@@ -247,7 +324,7 @@ export default function SearchBar({
   const handleStopNavigation = () => { setNavigating(false); onStopNavigation?.(); };
 
   const handleCollapse = () => {
-    setExpanded(false); setSuggestions([]); setRouteInfo(null);
+    updateExpanded(false); updateActiveField(null); setSuggestions([]); setRouteInfo(null);
     setWarnings(null); setRouteCoords(null); setNavigating(false);
     onDrawRoute(null); onSafetyWarnings(null); onStopNavigation?.();
   };
@@ -256,7 +333,7 @@ export default function SearchBar({
     <div ref={panelRef} className="fixed top-3 left-1/2 -translate-x-1/2 z-[1000] w-[440px] max-w-[90vw]">
       <div className="bg-slate-800/95 backdrop-blur-md rounded-xl shadow-2xl shadow-black/40 border border-slate-700/50 overflow-hidden">
         {!expanded ? (
-          <div className="flex items-center gap-3 px-4 py-3 cursor-text" onClick={() => setExpanded(true)}>
+          <div className="flex items-center gap-3 px-4 py-3 cursor-text" onClick={() => updateExpanded(true)}>
             <Search size={16} className="text-slate-400 flex-shrink-0" />
             <span className="text-sm text-slate-400">Enter destination...</span>
           </div>
@@ -264,13 +341,13 @@ export default function SearchBar({
           <div className="p-3 space-y-2">
             <div className="relative">
               <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-green-400" />
-              <input value={fromText} onChange={(e) => handleFromChange(e.target.value)} onFocus={() => setActiveField('from')}
+              <input value={fromText} onChange={(e) => handleFromChange(e.target.value)} onFocus={() => updateActiveField('from')}
                 placeholder="Starting point"
                 className="w-full pl-8 pr-3 py-2 rounded-lg bg-slate-700/60 border border-slate-600/50 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-blue-500/60 transition-all" />
             </div>
             <div className="relative">
               <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-red-400" />
-              <input value={toText} onChange={(e) => handleToChange(e.target.value)} onFocus={() => setActiveField('to')}
+              <input value={toText} onChange={(e) => handleToChange(e.target.value)} onFocus={() => updateActiveField('to')}
                 placeholder="Destination" autoFocus
                 className="w-full pl-8 pr-3 py-2 rounded-lg bg-slate-700/60 border border-slate-600/50 text-white text-sm placeholder:text-slate-500 focus:outline-none focus:border-blue-500/60 transition-all" />
             </div>

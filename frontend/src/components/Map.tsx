@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -295,6 +295,8 @@ interface MapProps {
   onStopNavigation?: () => void;
   onSelectDirections?: (lat: number, lng: number, label: string) => void;
   onSelectStartNavigation?: (lat: number, lng: number, label: string) => void;
+  directionsMode?: boolean;
+  onMapClickForDirections?: (lat: number, lng: number) => void;
 }
 
 export default function Map({
@@ -313,6 +315,8 @@ export default function Map({
   onStopNavigation,
   onSelectDirections,
   onSelectStartNavigation,
+  directionsMode = false,
+  onMapClickForDirections,
 }: MapProps) {
   const [clickedPin, setClickedPin] = useState<[number, number] | null>(null);
   const [address, setAddress] = useState<string | null>(null);
@@ -480,7 +484,7 @@ export default function Map({
             </div>
             <button
               onClick={() => setClickedPin(null)}
-              className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+              className="p-1 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-400 hover:text-white transition-colors"
             >
               <X size={14} />
             </button>
@@ -533,24 +537,29 @@ export default function Map({
         />
         <ClickHandler
           onClick={(lat, lng) => {
-            setClickedPin([lat, lng]);
-            setAddress(null);
-            setAddressLoading(true);
-            reverseGeocode(lat, lng)
-              .then((res) => {
-                if (res.success && res.address) {
-                  const short = res.address.split(',').slice(0, 3).join(',');
-                  setAddress(short);
-                } else {
+            if (isNavigating) return;
+            if (directionsMode) {
+              onMapClickForDirections?.(lat, lng);
+            } else {
+              setClickedPin([lat, lng]);
+              setAddress(null);
+              setAddressLoading(true);
+              reverseGeocode(lat, lng)
+                .then((res) => {
+                  if (res.success && res.address) {
+                    const short = res.address.split(',').slice(0, 3).join(',');
+                    setAddress(short);
+                  } else {
+                    setAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+                  }
+                })
+                .catch(() => {
                   setAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-                }
-              })
-              .catch(() => {
-                setAddress(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
-              })
-              .finally(() => {
-                setAddressLoading(false);
-              });
+                })
+                .finally(() => {
+                  setAddressLoading(false);
+                });
+            }
           }}
         />
         <FlyTo issue={selectedIssue} />
@@ -704,6 +713,7 @@ export default function Map({
             </Popup>
           </Marker>
         )}
+
       </MapContainer>
     </div>
   );

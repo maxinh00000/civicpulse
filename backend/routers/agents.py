@@ -22,6 +22,8 @@ async def route_safety(request: RouteRequest):
             issues=issues,
             mode=request.mode,
         )
+        print("Route Safety Response:", warnings)
+        print("Total Warnings:", len(warnings))
         return {"warnings": warnings, "total": len(warnings)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Route safety check failed: {str(e)}")
@@ -54,7 +56,7 @@ async def agent_health():
         )
         tiny_jpeg = base64.b64decode(tiny_jpeg_b64)
         vision_result = await analyze_image(tiny_jpeg)
-        statuses["vision_agent"] = "ok" if isinstance(vision_result, dict) and "category" in vision_result else "error"
+        statuses["vision_agent"] = "ok" if isinstance(vision_result, dict) and vision_result.get("confidence", 0) > 0 else "error"
     except Exception as e:
         statuses["vision_agent"] = f"error: {str(e)[:60]}"
 

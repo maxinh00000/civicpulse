@@ -27,6 +27,11 @@ export default function App() {
   const [agentHealth, setAgentHealth] = useState<AgentHealth | null>(null);
   const [showHealthTooltip, setShowHealthTooltip] = useState(false);
 
+  // Directions Mode lifted states
+  const [directionsMode, setDirectionsMode] = useState(false);
+  const [activeRouteField, setActiveRouteField] = useState<'from' | 'to' | null>(null);
+  const [mapClickCoords, setMapClickCoords] = useState<{ lat: number; lng: number } | null>(null);
+
   // Navigation mode
   const [isNavigating, setIsNavigating] = useState(false);
   const [navWarnings, setNavWarnings] = useState<RouteWarning[]>([]);
@@ -270,6 +275,8 @@ export default function App() {
 
   /* ── Handlers ─── */
   const handleMapClick = (lat: number, lng: number) => {
+    console.log("Current mode", directionsMode ? "directions" : "report");
+    console.log("Clicked Lat/Lng on Map:", lat, lng);
     if (!selectedIssue) {
       setFormCoords({ lat, lng });
     }
@@ -419,6 +426,12 @@ export default function App() {
             onStopNavigation={handleStopNavigation}
             externalDestination={externalDestination}
             onClearExternalDestination={() => setExternalDestination(null)}
+            directionsMode={directionsMode}
+            onDirectionsModeChange={setDirectionsMode}
+            activeRouteField={activeRouteField}
+            onActiveFieldChange={setActiveRouteField}
+            mapClickCoords={mapClickCoords}
+            onClearMapClick={() => setMapClickCoords(null)}
           />
         )}
 
@@ -445,10 +458,17 @@ export default function App() {
             navWarnings={navWarnings}
             onStopNavigation={handleStopNavigation}
             onSelectDirections={(lat, lng, label) => {
+              setSelectedIssue(null);
               setExternalDestination({ lat, lng, label });
+              setDirectionsMode(true);
             }}
             onSelectStartNavigation={(lat, lng, label) => {
+              setSelectedIssue(null);
               startDirectNavigation(lat, lng, label);
+            }}
+            directionsMode={directionsMode}
+            onMapClickForDirections={(lat, lng) => {
+              setMapClickCoords({ lat, lng });
             }}
           />
         )}
@@ -530,6 +550,15 @@ export default function App() {
           onClose={() => setSelectedIssue(null)}
           onVote={handleVote}
           onResolve={handleResolve}
+          onSelectDirections={(lat, lng, label) => {
+            setSelectedIssue(null);
+            setExternalDestination({ lat, lng, label });
+            setDirectionsMode(true);
+          }}
+          onSelectStartNavigation={(lat, lng, label) => {
+            setSelectedIssue(null);
+            startDirectNavigation(lat, lng, label);
+          }}
         />
       )}
     </div>

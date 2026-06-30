@@ -1,19 +1,24 @@
-# Python
-venv/
-__pycache__/
-*.pyc
-
 # Node
 node_modules/
-npm-debug.log
+npm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
 
 # Environment
 .env
-.env.local
+*.env
+backend/.env
+frontend/.env
 
 # Build
 dist/
 build/
+
+# TypeScript
+*.tsbuildinfo
 
 # IDE
 .vscode/
@@ -22,8 +27,6 @@ build/
 # OS
 .DS_Store
 Thumbs.db
-# Environment files
-.env
-*.env
-backend/.env
-frontend/.env
+
+# Git backups
+.git_backup/

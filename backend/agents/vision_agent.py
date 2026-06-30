@@ -12,10 +12,10 @@ genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
 async def analyze_image(image_bytes: bytes, model_name: str = "gemini-2.5-flash") -> dict:
     default_result = {
         'category': 'other',
-        'severity': 'low',
-        'confidence': 0.1,
-        'title': 'Unidentified Issue',
-        'description': 'Could not analyze image.'
+        'severity': 'medium',
+        'confidence': 0,
+        'title': 'Manual Report',
+        'description': 'AI analysis unavailable. Please classify manually.'
     }
 
     try:

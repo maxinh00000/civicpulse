@@ -148,7 +148,7 @@ export default function Sidebar({ issues, onSelectIssue, selectedIssueId, agentA
         <div className="px-1 py-1">
           <div className="grid grid-cols-3 gap-2 px-3 py-2">
             {[
-              { icon: '📍', label: 'Total Issues', value: stats.total_issues ?? 0, color: 'text-blue-400' },
+              { icon: '📍', label: 'Total Issues', value: stats.total ?? 0, color: 'text-blue-400' },
               { icon: '🔴', label: 'Open', value: stats.open ?? 0, color: 'text-red-400' },
               { icon: '✅', label: 'Resolved', value: stats.resolved ?? 0, color: 'text-green-400' },
             ].map((stat) => (
