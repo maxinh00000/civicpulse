@@ -25,7 +25,7 @@ async def upload_image(file: UploadFile = File(...)):
 
     try:
         image_bytes = await file.read()
-        print(f"\n[Upload] Received file: {file.filename}, size: {len(image_bytes)} bytes, type: {file.content_type}")
+        print('UPLOADED FILE SIZE:', len(image_bytes), 'bytes')
 
         if len(image_bytes) > 10 * 1024 * 1024:  # 10 MB limit
             raise HTTPException(status_code=400, detail="Image must be under 10 MB")
@@ -33,23 +33,28 @@ async def upload_image(file: UploadFile = File(...)):
         # Analyze image with Gemini vision agent
         print("[Upload] Calling vision agent...")
         analysis = await analyze_image(image_bytes)
-        print(f"[Upload] Vision agent returned: {analysis}")
+        print('VISION AGENT RESULT:', analysis)
 
         # Upload to Supabase Storage
-        ext = file.filename.rsplit(".", 1)[-1] if file.filename and "." in file.filename else "jpg"
-        file_name = f"{uuid.uuid4()}.{ext}"
-        file_path = f"uploads/{file_name}"
+        public_url = ""
+        file_path = ""
+        try:
+            ext = file.filename.rsplit(".", 1)[-1] if file.filename and "." in file.filename else "jpg"
+            file_name = f"{uuid.uuid4()}.{ext}"
+            file_path = f"uploads/{file_name}"
 
-        print(f"[Upload] Uploading to Supabase bucket '{BUCKET_NAME}' at path: {file_path}")
-        supabase.storage.from_(BUCKET_NAME).upload(
-            path=file_path,
-            file=image_bytes,
-            file_options={"content-type": file.content_type or "image/jpeg"},
-        )
+            print(f"[Upload] Uploading to Supabase bucket '{BUCKET_NAME}' at path: {file_path}")
+            supabase.storage.from_(BUCKET_NAME).upload(
+                path=file_path,
+                file=image_bytes,
+                file_options={"content-type": file.content_type or "image/jpeg"},
+            )
 
-        # Get public URL
-        public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(file_path)
-        print(f"[Upload] Public URL: {public_url}")
+            # Get public URL
+            public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(file_path)
+            print(f"[Upload] Public URL: {public_url}")
+        except Exception as e:
+            print("SUPABASE UPLOAD ERROR:", str(e))
 
         # Return flattened response — all fields at top level so frontend can read them directly
         return {

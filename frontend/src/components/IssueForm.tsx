@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
   X, Upload, Loader2, Sparkles, Image as ImageIcon,
   AlertTriangle, MapPin, CheckCircle2, ExternalLink,
@@ -63,17 +63,34 @@ export default function IssueForm({ lat, lng, onClose, onSubmit, onViewIssue }: 
     setDuplicateInfo(null);
     try {
       const result = await uploadImage(file);
+      console.log('UPLOAD IMAGE RESULT:', result);
       setImageUrl(result.image_url);
-      if (result.category) setCategory(result.category);
-      if (result.severity) setSeverity(result.severity);
+      
+      const apiCategory = result.category ? result.category.toLowerCase().replace(' ', '_') : 'other';
+      const isValidCategory = CATEGORIES.some(c => c.value === apiCategory);
+      const matchedCategory = isValidCategory ? apiCategory : 'other';
+      setCategory(matchedCategory);
+
+      if (result.severity) {
+        setSeverity(result.severity);
+      }
+
       if (result.confidence !== undefined) {
         setAiConfidence(result.confidence);
-        setAiCategory(result.category);
+        setAiCategory(matchedCategory);
       }
-      if (result.title) { setTitle(result.title); setTitleAiSuggested(true); }
-      if (result.description) { setDescription(result.description); setDescAiSuggested(true); }
+
+      if (result.title) {
+        setTitle(result.title);
+        setTitleAiSuggested(true);
+      }
+      if (result.description) {
+        setDescription(result.description);
+        setDescAiSuggested(true);
+      }
       toast.success('AI analysis complete - fields pre-filled!');
-    } catch {
+    } catch (err) {
+      console.error('AI detection failed:', err);
       toast.error('AI detection failed - please fill fields manually');
     } finally {
       setUploading(false);
@@ -192,13 +209,22 @@ export default function IssueForm({ lat, lng, onClose, onSubmit, onViewIssue }: 
           </div>
 
           {aiConfidence !== null && aiCategory && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20">
-              <CheckCircle2 size={16} className="text-green-400 flex-shrink-0" />
-              <p className="text-xs text-green-300">
-                AI detected: <strong className="text-green-200 capitalize">{aiCategory.replace(/_/g, ' ')}</strong>
-                {' '}({Math.round(aiConfidence * 100)}% confident)
-              </p>
-            </div>
+            (aiConfidence === 0.1 || aiCategory === 'other') ? (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <AlertTriangle size={16} className="text-amber-400 flex-shrink-0" />
+                <p className="text-xs text-amber-300">
+                  Low confidence detection — please verify
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-500/10 border border-green-500/20">
+                <CheckCircle2 size={16} className="text-green-400 flex-shrink-0" />
+                <p className="text-xs text-green-300">
+                  AI detected: <strong className="text-green-200 capitalize">{aiCategory.replace(/_/g, ' ')}</strong>
+                  {' '}({Math.round(aiConfidence * 100)}% confident)
+                </p>
+              </div>
+            )
           )}
 
           <div>

@@ -63,11 +63,12 @@ export async function getNearbyIssues(
 export async function uploadImage(
   file: File,
 ): Promise<{ image_url: string; category: string; severity: string; confidence: number; title: string; description: string }> {
-  const form = new FormData();
-  form.append('file', file);
-  const { data } = await client.post('/upload/image', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await client.post('/upload/image', formData, {
+    headers: { 'Content-Type': undefined },
   });
+  console.log('UPLOAD IMAGE RESPONSE:', data);
   return data;
 }
 

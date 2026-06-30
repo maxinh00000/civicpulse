@@ -1,6 +1,7 @@
 import os
 import json
 import base64
+import asyncio
 import google.generativeai as genai
 from dotenv import load_dotenv
 
@@ -8,93 +9,66 @@ load_dotenv()
 
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
 
-
-async def analyze_image(image_bytes: bytes) -> dict:
-    """
-    Send an image to Gemini 2.0 Flash for civic issue analysis.
-    Returns a dict with category, severity, confidence, title, and description.
-    """
+async def analyze_image(image_bytes: bytes, model_name: str = "gemini-2.5-flash") -> dict:
     default_result = {
-        "category": "other",
-        "severity": "low",
-        "confidence": 0.1,
-        "title": "Unidentified Issue",
-        "description": "No clear civic issue detected.",
+        'category': 'other',
+        'severity': 'low',
+        'confidence': 0.1,
+        'title': 'Unidentified Issue',
+        'description': 'Could not analyze image.'
     }
 
     try:
-        model = genai.GenerativeModel("gemini-2.0-flash")
-
-        # Convert bytes to base64 string
-        image_b64 = base64.b64encode(image_bytes).decode("utf-8")
-
-        prompt = (
-            "You are a civic issue detection AI. Analyze this image carefully. "
-            "Return ONLY a raw JSON object (no markdown, no backticks, no explanation) "
-            "with exactly these fields: "
-            "category (must be one of: pothole, water_leakage, garbage, streetlight, other), "
-            "severity (must be one of: low, medium, high, critical), "
-            "confidence (a float between 0 and 1), "
-            "title (a short 5-8 word title describing the issue), "
-            "description (one clear sentence describing what you see and why it is a civic problem). "
-            "If you cannot detect any civic issue, still return JSON with "
-            "category: other, severity: low, confidence: 0.1, "
-            "title: Unidentified Issue, description: No clear civic issue detected."
+        base64_string = base64.b64encode(image_bytes).decode('utf-8')
+        model = genai.GenerativeModel(model_name)
+        image_part = {'inline_data': {'mime_type': 'image/jpeg', 'data': base64_string}}
+        
+        prompt_text = (
+            'Analyze this image. It may show a civic infrastructure problem like a pothole, '
+            'water leakage, garbage dump, or broken streetlight. Respond with ONLY a JSON object. '
+            'No markdown. No backticks. No explanation. Just the raw JSON. Use exactly these fields: '
+            'category (must be exactly one of: pothole, water_leakage, garbage, streetlight, other), '
+            'severity (must be exactly one of: low, medium, high, critical), '
+            'confidence (a number between 0.0 and 1.0), '
+            'title (a short descriptive title of 5 to 8 words), '
+            'description (one sentence describing the civic problem visible in the image). '
+            'If you see a pothole or road damage, use pothole. If you see standing water or pipe leakage, '
+            'use water_leakage. If you see trash or garbage, use garbage. If you see a broken or missing '
+            'streetlight, use streetlight.'
         )
 
-        # Pass image as inline_data part using the updated SDK format
-        response = model.generate_content(
-            [
-                prompt,
-                {
-                    "inline_data": {
-                        "mime_type": "image/jpeg",
-                        "data": image_b64,
-                    }
-                },
-            ]
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: model.generate_content([image_part, prompt_text])
         )
 
-        raw_text = response.text.strip()
-        print(f"\n[VisionAgent] Raw Gemini response:\n{raw_text}\n")
+        print('GEMINI RAW RESPONSE:', response.text)
 
-        # Strip markdown code fences if present
-        if raw_text.startswith("```"):
-            lines = raw_text.split("\n")
-            # Drop opening fence line (```json or ```)
-            inner_lines = lines[1:] if lines[0].startswith("```") else lines
-            # Drop closing fence line
-            if inner_lines and inner_lines[-1].strip() == "```":
-                inner_lines = inner_lines[:-1]
-            raw_text = "\n".join(inner_lines).strip()
+        # Clean the response: strip whitespace, remove ```json and ``` if present
+        cleaned_text = response.text.strip()
+        if cleaned_text.startswith("```json"):
+            cleaned_text = cleaned_text[7:]
+        if cleaned_text.startswith("```"):
+            cleaned_text = cleaned_text[3:]
+        if cleaned_text.endswith("```"):
+            cleaned_text = cleaned_text[:-3]
+        cleaned_text = cleaned_text.strip()
 
-        # Handle if starts with "json" literal after stripping backticks
-        if raw_text.startswith("json"):
-            raw_text = raw_text[4:].strip()
+        result = json.loads(cleaned_text)
 
-        result = json.loads(raw_text)
-        print(f"[VisionAgent] Parsed result: {result}")
+        # Validate that category is one of the allowed values, if not set to 'other'
+        allowed_categories = {'pothole', 'water_leakage', 'garbage', 'streetlight', 'other'}
+        if result.get('category') not in allowed_categories:
+            result['category'] = 'other'
 
-        # Validate and coerce expected fields
-        valid_categories = {"pothole", "water_leakage", "garbage", "streetlight", "other"}
-        valid_severities = {"low", "medium", "high", "critical"}
-
-        if result.get("category") not in valid_categories:
-            result["category"] = "other"
-        if result.get("severity") not in valid_severities:
-            result["severity"] = "low"
-        if not isinstance(result.get("confidence"), (int, float)):
-            result["confidence"] = 0.0
-        if not isinstance(result.get("description"), str) or not result.get("description"):
-            result["description"] = "No description available."
-        if not isinstance(result.get("title"), str) or not result.get("title"):
-            result["title"] = "Unidentified Issue"
+        # Validate that severity is one of the allowed values, if not set to 'low'
+        allowed_severities = {'low', 'medium', 'high', 'critical'}
+        if result.get('severity') not in allowed_severities:
+            result['severity'] = 'low'
 
         return result
 
-    except json.JSONDecodeError as e:
-        print(f"[VisionAgent] JSON parse error: {e}")
-        return default_result
     except Exception as e:
-        print(f"[VisionAgent] Error during analysis: {e}")
+        print('VISION AGENT ERROR:', str(e))
         return default_result
