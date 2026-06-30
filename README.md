@@ -1,99 +1,104 @@
-﻿# CivicPulse 🌐
+# CivicPulse 🚦
 
-CivicPulse is a modern, AI-augmented civic issue reporting and routing platform that helps citizens report infrastructure hazards (like potholes, water leakage, broken streetlights, or garbage), automatically detects duplicates to merge duplicate concerns, triggers automatic escalation, and provides turn-by-turn navigation alerts to safely route drivers, cyclists, and pedestrians around reported hazards.
+**AI-powered hyperlocal civic issue reporting platform** — built for Vibe2Ship Hackathon, Problem Statement 2: Community Hero.
 
----
-
-## 🚀 Key Features
-
-### 1. 🤖 AI-Powered Vision Issue Analysis
-* **Automated Categorization**: Uploading an image in the issue reporting form runs real-time visual analysis using the **Gemini 2.0 Flash** model to detect categories (`pothole`, `water_leakage`, `garbage`, `streetlight`, `other`) and severity ratings (`low`, `medium`, `high`, `critical`).
-* **Auto-Filled Title & Description**: Dynamically generates descriptive titles and detailed summaries from images.
-* **✨ AI suggested Badges**: Form input fields display a dynamic label indicating recommendations, which gracefully clear when the user starts typing manually.
-
-### 2. 🗺️ Turn-by-Turn Navigation & Hazard Alerts
-* **Google Maps-Style Map Click Details**: Clicking on the map pins a location and pops up a bottom HUD showing reverse-geocoded addresses (fetched via a secure backend proxy) with options to get **Directions**, **Start Navigation** instantly, or **Report an Issue**.
-* **Live Route Warnings**: Draws routes using **OSRM APIs** (supporting Driving, Cycling, and Walking). Checks active hazards within 500m of the path and updates a top persistent HUD bar:
-  * 🟢 **Green**: Clear route.
-  * 🟡 **Yellow**: Hazard ahead within 800m.
-  * 🟠 **Orange**: Hazard warning within 400m.
-  * 🔴 **Red (Pulsing)**: Caution immediately ahead within 100m.
-* **Sequential Passing Detection**: Recalculates distance dynamically; if a hazard's distance increases for 3 consecutive GPS position updates (using `watchPosition`), it is marked as passed.
-* **Hazards Floating List**: Displays a floating panel on the left detailing upcoming hazards sorted by distance, with their emoji, category, severity, and compass bearing directions (e.g. `north`, `southwest` etc.).
-
-### 3. 🔍 Silent Duplicate Detection Agent
-* **Automated Merging**: Backend compares new submissions against nearby active issues of the same category within 100m.
-* **Frontend Duplicate Warning**: Submitting a duplicate alerts the user with a warning card showing the distance to the existing issue, automatically increments confirmation votes on the original report, and lets the user click **View Existing Issue** directly.
-
-### 4. 🏥 Centralized Agent Health Tooltip
-* **Diagnostic Route**: `/agents/health` tests all 5 agents (Vision, Duplicate, Route Safety, Escalation, Database/Nearby) independently via a 1x1 test image.
-* **Sidebar Indicator**: Visual status dot on the dashboard header (Green for Healthy, Yellow for Degraded, Red for Offline) with a hover tooltip displaying status checkmarks (✅/❌) for each agent.
-
-### 5. 📢 Background Auto-Escalation Loop
-* **FastAPI asyncio Task**: Periodically runs a background task every 5 minutes on server start that automatically escalates open high-priority/unconfirmed issues to municipal authorities.
+🔗 **Live App:** https://civicpulse-300626-5655f.web.app/
+🔗 **Backend API:** https://trivedhu-civicpulse-backend.hf.space
 
 ---
 
-## 🛠️ Technology Stack
-* **Frontend**: React (TypeScript), Tailwind CSS, Leaflet.js (Map container)
-* **Backend**: FastAPI (Python), httpx, asyncio
-* **AI/LLM**: Google Generative AI (Gemini 2.0 Flash)
-* **Database & Storage**: Supabase (PostgreSQL + Supabase Storage for uploads)
+## What is CivicPulse?
+
+CivicPulse turns a single photo into actionable civic data. Citizens report infrastructure problems — potholes, water leakages, garbage, broken streetlights — and a network of AI agents automatically categorizes, verifies, tracks, and surfaces them on a live map. The platform also proactively warns travelers about hazards along their route, like a "Waze for civic problems."
 
 ---
 
-## ⚙️ Environment Variables Setup
+## Key Features
 
-### Backend Environment Configuration (`backend/.env`)
-Create a `.env` file in the `backend/` directory:
-```env
-SUPABASE_URL=https://your-supabase-project.supabase.co
-SUPABASE_KEY=your-supabase-anon-key
-GEMINI_API_KEY=your-google-gemini-api-key
+- **One-tap photo reporting** — upload an image, Gemini Vision AI auto-detects category, severity, and confidence
+- **Live interactive map** — emoji-based markers, color-coded by category, sized/shaded by severity
+- **Duplicate Detection Agent** — merges nearby reports of the same issue instead of cluttering the map
+- **Route Safety Agent** — checks a planned route via OSRM and warns of hazards along the way
+- **Nearby Issues Alert** — surfaces all open reports within 1km of the user
+- **Community voting** — confirmations and votes automatically escalate severity
+- **Severity Escalation Agent** — runs on-demand and on a background interval to re-evaluate unresolved issues
+- **Authority Recommendation** — shows relevant authority contacts and AI-generated complaint text per category
+- **Graceful degradation** — if the Gemini API quota is exhausted, manual reporting still works; the app never blocks issue creation
+
+---
+
+## AI Agents
+
+| Agent | Trigger | Function |
+|---|---|---|
+| Vision Agent | Image uploaded | Gemini-powered analysis → category, severity, confidence, auto-generated title/description |
+| Duplicate Detection Agent | New report submitted | Haversine-distance proximity check, merges duplicate reports within 100m |
+| Route Safety Agent | Route requested | OSRM route analysis, surfaces hazards within threshold distance, ranked by severity |
+| Severity Escalation Agent | Manual + background interval | Auto-escalates severity based on votes and report age |
+| Nearby Hazard Agent | App load / geolocation | Returns all open issues within 1km, sorted by distance |
+
+---
+
+## Tech Stack
+
+**Frontend:** React, TypeScript, Vite, Tailwind CSS, Leaflet.js, OpenStreetMap
+**Backend:** FastAPI (Python)
+**Database & Storage:** Supabase (PostgreSQL + Storage)
+**AI:** Gemini 2.5 Flash (Vision) via Google AI Studio
+**Routing/Geocoding:** OSRM, Nominatim
+**Hosting:** Firebase Hosting (frontend), Hugging Face Spaces — Docker (backend)
+
+---
+
+## Architecture
+
+```
+Browser
+   ↓
+Firebase Hosting (React frontend)
+   ↓ REST API
+Hugging Face Spaces — Docker (FastAPI backend)
+   ↓
+Supabase (DB + Storage) · Gemini API (Vision) · OSRM (routing) · Nominatim (geocoding)
 ```
 
+**Note on deployment:** Backend was originally planned for Google Cloud Run, but billing could not be enabled on the available Google account in time. The backend is deployed on Hugging Face Spaces (Docker SDK) as a fully functional alternative. The frontend remains on Firebase Hosting (Google Cloud Platform). Gemini 2.5 Flash, a core Google AI technology, powers the primary Vision Agent.
+
 ---
 
-## 📦 Installation & Getting Started
+## Local Development
 
-### 1. Run Supabase Database Schema
-Set up the `issues` table in your Supabase SQL Editor:
-```sql
-CREATE TABLE issues (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-  title TEXT NOT NULL,
-  description TEXT,
-  category TEXT NOT NULL CHECK (category IN ('pothole', 'water_leakage', 'garbage', 'streetlight', 'other')),
-  severity TEXT NOT NULL CHECK (severity IN ('low', 'medium', 'high', 'critical')),
-  confidence FLOAT,
-  status TEXT DEFAULT 'open' CHECK (status IN ('open', 'resolved')),
-  latitude FLOAT NOT NULL,
-  longitude FLOAT NOT NULL,
-  address TEXT,
-  image_url TEXT,
-  votes INTEGER DEFAULT 0,
-  reporter_id TEXT NOT NULL,
-  merged_into UUID REFERENCES issues(id)
-);
-```
-Create a storage bucket named `issue-images` in Supabase Storage with **public accessibility enabled**.
-
-### 2. Start the Backend Server
+### Backend
 ```bash
 cd backend
-python -m venv venv
-# On Windows:
-$env:PATH="venv\Scripts;$env:PATH"
 pip install -r requirements.txt
+# create .env with SUPABASE_URL, SUPABASE_SERVICE_KEY, SUPABASE_ANON_KEY, GEMINI_API_KEY
 uvicorn main:app --reload
 ```
-The server will boot on `http://localhost:8000`.
 
-### 3. Start the Frontend Application
+### Frontend
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-The client app will launch on `http://localhost:5173`.
+
+---
+
+## Future Improvements
+
+- Migrate backend to Google Cloud Run once billing is set up, for full GCP-native deployment
+- Real-time turn-by-turn navigation with live distance-based hazard alerts (similar to Google Maps)
+- Predictive Agent — forecast recurring issues using historical/seasonal data (e.g. monsoon water leakages)
+- Trend Analysis Agent — generate area-wise weekly summaries
+- Natural Language Map Agent — query the map conversationally ("show severe potholes near my college")
+- Gamification — badges, points, leaderboards for active community reporters
+- Resolution Verification Agent — automatically compare before/after images to confirm a fix
+- Push notifications for hazards on saved/frequent routes
+- Multi-language support for wider community accessibility
+
+---
+
+## Team / Submission
+
+Built for Vibe2Ship Hackathon — Problem Statement 2: Community Hero – Hyperlocal Problem Solver.
