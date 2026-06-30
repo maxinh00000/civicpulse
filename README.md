@@ -77,6 +77,7 @@ uvicorn main:app --reload
 ```
 
 ### Frontend
+
 ```bash
 cd frontend
 npm install
